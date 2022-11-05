@@ -1,8 +1,10 @@
-import { Button, HStack, Text, useTheme, VStack } from 'native-base';
-import { X, Check } from 'phosphor-react-native';
-import { getName } from 'country-list';
-
-import { Team } from './Team';
+import { Button, HStack, Text, useTheme, useToast, VStack } from "native-base";
+import { X, Check } from "phosphor-react-native";
+import { getName } from "country-list";
+import dayjs from "dayjs";
+import ptBR from "dayjs/locale/pt-br";
+import { Team } from "./Team";
+import { useEffect, useState } from "react";
 
 interface GuessProps {
   id: string;
@@ -15,21 +17,44 @@ interface GuessProps {
 
 export interface GameProps {
   id: string;
+  date: string;
   firstTeamCountryCode: string;
   secondTeamCountryCode: string;
   guess: null | GuessProps;
-};
+}
 
 interface Props {
   data: GameProps;
-  onGuessConfirm: () => void;
-  setFirstTeamPoints: (value: string) => void;
-  setSecondTeamPoints: (value: string) => void;
-};
+  onGuessConfirm: (
+    gameId: string,
+    firstTeamPoints: number,
+    secondTeamPoints: number
+  ) => void;
+}
 
-export function Game({ data, setFirstTeamPoints, setSecondTeamPoints, onGuessConfirm }: Props) {
+export function Game({ data, onGuessConfirm }: Props) {
   const { colors, sizes } = useTheme();
+  const [firstTeamPoints, setFirstTeamPoints] = useState("");
+  const [secondTeamPoints, setSecondTeamPoints] = useState("");
+  const [tempoEsgotado, setTempoEsgotado] = useState(false);
+  const toast = useToast();
+  const onSubmit = () => {
+    if (!firstTeamPoints || !secondTeamPoints) {
+      return toast.show({
+        title: "palpite invalido, insira um valor para cada time",
+        placement: "top",
+        bgColor: "red.500",
+      });
+    }
+    onGuessConfirm(data.id, Number(firstTeamPoints), Number(secondTeamPoints));
+  };
 
+  const parsedDate = dayjs(data.date)
+    .locale(ptBR)
+    .format("DD [de] MMMM [de] YYYY [às] HH:00[h]");
+  useEffect(() => {
+    setTempoEsgotado(dayjs(data.date) < dayjs());
+  }, [data.date]);
   return (
     <VStack
       w="full"
@@ -42,14 +67,20 @@ export function Game({ data, setFirstTeamPoints, setSecondTeamPoints, onGuessCon
       p={4}
     >
       <Text color="gray.100" fontFamily="heading" fontSize="sm">
-        {getName(data.firstTeamCountryCode)} vs. {getName(data.secondTeamCountryCode)}
+        {getName(data.firstTeamCountryCode)} vs.{" "}
+        {getName(data.secondTeamCountryCode)}
       </Text>
 
       <Text color="gray.200" fontSize="xs">
-        22 de Novembro de 2022 às 16:00h
+        {parsedDate}
       </Text>
 
-      <HStack mt={4} w="full" justifyContent="space-between" alignItems="center">
+      <HStack
+        mt={4}
+        w="full"
+        justifyContent="space-between"
+        alignItems="center"
+      >
         <Team
           code={data.firstTeamCountryCode}
           position="right"
@@ -65,18 +96,23 @@ export function Game({ data, setFirstTeamPoints, setSecondTeamPoints, onGuessCon
         />
       </HStack>
 
-      {
-        !data.guess &&
-        <Button size="xs" w="full" bgColor="green.500" mt={4} onPress={onGuessConfirm}>
+      {!data.guess && (
+        <Button
+          size="xs"
+          w="full"
+          bgColor={tempoEsgotado ? "gray.500" : "green.500"}
+          mt={4}
+          onPress={onSubmit}
+          disabled={tempoEsgotado}
+        >
           <HStack alignItems="center">
             <Text color="white" fontSize="xs" fontFamily="heading" mr={3}>
-              CONFIRMAR PALPITE
+              {tempoEsgotado ? "TEMPO ESGOTADO" : "CONFIRMAR PALPITE"}
             </Text>
-
-            <Check color={colors.white} size={sizes[4]} />
+            {!tempoEsgotado && <Check color={colors.white} size={sizes[4]} />}
           </HStack>
         </Button>
-      }
+      )}
     </VStack>
   );
 }
